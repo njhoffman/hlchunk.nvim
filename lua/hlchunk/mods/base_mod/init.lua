@@ -156,6 +156,9 @@ function BaseMod:createAutocmd()
             for winid, changes in pairs(data) do
                 if winid ~= "all" then
                     winid = tonumber(winid) --[[@as number]]
+                    if not api.nvim_win_is_valid(winid) then
+                        return
+                    end
                     local bufnr = api.nvim_win_get_buf(winid)
                     if changes.topline ~= 0 then
                         api.nvim_exec_autocmds("User", {
