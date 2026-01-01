@@ -51,10 +51,8 @@ end
 ---@overload fun(conf?: HlChunk.UserChunkConf, meta?: HlChunk.MetaInfo): HlChunk.ChunkMod
 local ChunkMod = class(BaseMod, constructor)
 
--- chunk_mod can use text object, so add a new function extra to handle it
 function ChunkMod:enable()
     BaseMod.enable(self)
-    self:extra()
     self:render(Scope(0, 0, -1))
 end
 
@@ -76,6 +74,7 @@ function ChunkMod:get_chunk_data(range, virt_text_list, row_list, virt_text_win_
     local beg_blank_len = cFunc.get_indent(range.bufnr, range.start)
     local end_blank_len = cFunc.get_indent(range.bufnr, range.finish)
     local start_col = math.max(math.min(beg_blank_len, end_blank_len) - self.meta.shiftwidth, 0)
+    start_col = math.max(start_col - (self.meta.shiftwidth == 1 and 1 or 0), 0)
 
     if beg_blank_len > 0 then
         local virt_text_len = beg_blank_len - start_col
@@ -165,7 +164,7 @@ function ChunkMod:render(range, opts)
         self.meta.task = LoopTask(function(vt, row, vt_win_col)
             row_opts.virt_text = { { vt, text_hl } }
             row_opts.virt_text_win_col = vt_win_col
-            if api.nvim_buf_is_valid(range.bufnr) and api.nvim_buf_line_count(range.bufnr) > row then
+            if api.nvim_buf_is_valid(range.bufnr) and row ~= nil and api.nvim_buf_line_count(range.bufnr) > row then
                 api.nvim_buf_set_extmark(range.bufnr, self.meta.ns_id, row, 0, row_opts)
             end
         end, "linear", self.conf.duration, virt_text_list, row_list, virt_text_win_col_list)
@@ -242,14 +241,27 @@ function ChunkMod:createAutocmd()
             end
         end,
     })
+    api.nvim_create_autocmd("Filetype", {
+        group = self.meta.augroup_name,
+        callback = function()
+            -- chunk_mod can use text object, so add a new function extra to handle it
+            local ft = vim.bo[0].filetype
+            if not self.conf.exclude_filetypes[ft] then
+                self:extra()
+            end
+        end,
+    })
 end
 
 function ChunkMod:extra()
     local textobject = self.conf.textobject
-    if #textobject == 0 then
+    local keymap = textobject.keymap
+    local desc = textobject.desc
+
+    if not keymap then
         return
     end
-    vim.keymap.set({ "x", "o" }, textobject, function()
+    vim.keymap.set({ "x", "o" }, keymap, function()
         local pos = api.nvim_win_get_cursor(0)
         local retcode, cur_chunk_range = chunkHelper.get_chunk_range({
             pos = { bufnr = 0, row = pos[1] - 1, col = pos[2] },
@@ -269,7 +281,7 @@ function ChunkMod:extra()
         api.nvim_win_set_cursor(0, { s_row, 0 })
         vim.cmd("normal! V")
         api.nvim_win_set_cursor(0, { e_row, 0 })
-    end)
+    end, { desc = desc, buffer = true })
 end
 
 return ChunkMod
