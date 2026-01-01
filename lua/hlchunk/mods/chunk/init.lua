@@ -51,6 +51,7 @@ end
 ---@overload fun(conf?: HlChunk.UserChunkConf, meta?: HlChunk.MetaInfo): HlChunk.ChunkMod
 local ChunkMod = class(BaseMod, constructor)
 
+-- chunk_mod can use text object, so add a new function extra to handle it
 function ChunkMod:enable()
     BaseMod.enable(self)
     self:render(Scope(0, 0, -1))
@@ -332,27 +333,32 @@ function ChunkMod:extra()
     if not keymap then
         return
     end
-    vim.keymap.set({ "x", "o" }, keymap, function()
-        local pos = api.nvim_win_get_cursor(0)
-        local retcode, cur_chunk_range = chunkHelper.get_chunk_range({
-            pos = { bufnr = 0, row = pos[1] - 1, col = pos[2] },
-            use_treesitter = self.conf.use_treesitter,
-        })
-        if retcode ~= CHUNK_RANGE_RET.OK then
-            return
-        end
-        local s_row = cur_chunk_range.start + 1
-        local e_row = cur_chunk_range.finish + 1
-        local ctrl_v = api.nvim_replace_termcodes("<C-v>", true, true, true)
-        local cur_mode = vim.fn.mode()
-        if cur_mode == "v" or cur_mode == "V" or cur_mode == ctrl_v then
-            vim.cmd("normal! " .. cur_mode)
-        end
 
-        api.nvim_win_set_cursor(0, { s_row, 0 })
-        vim.cmd("normal! V")
-        api.nvim_win_set_cursor(0, { e_row, 0 })
-    end, { desc = desc, buffer = true })
+    local keymaps = type(keymap) == "table" and keymap or { keymap }
+
+    for _, keymap in ipairs(keymaps) do
+        vim.keymap.set({ "x", "o" }, keymap, function()
+            local pos = api.nvim_win_get_cursor(0)
+            local retcode, cur_chunk_range = chunkHelper.get_chunk_range({
+                pos = { bufnr = 0, row = pos[1] - 1, col = pos[2] },
+                use_treesitter = self.conf.use_treesitter,
+            })
+            if retcode ~= CHUNK_RANGE_RET.OK then
+                return
+            end
+            local s_row = cur_chunk_range.start + 1
+            local e_row = cur_chunk_range.finish + 1
+            local ctrl_v = api.nvim_replace_termcodes("<C-v>", true, true, true)
+            local cur_mode = vim.fn.mode()
+            if cur_mode == "v" or cur_mode == "V" or cur_mode == ctrl_v then
+                vim.cmd("normal! " .. cur_mode)
+            end
+
+            api.nvim_win_set_cursor(0, { s_row, 0 })
+            vim.cmd("normal! V")
+            api.nvim_win_set_cursor(0, { e_row, 0 })
+        end, { desc = desc, buffer = true })
+    end
 end
 
 return ChunkMod

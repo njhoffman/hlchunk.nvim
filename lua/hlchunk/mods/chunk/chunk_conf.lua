@@ -4,14 +4,14 @@ local BaseConf = require("hlchunk.mods.base_mod.base_conf")
 ---@class HlChunk.UserChunkConf : HlChunk.UserBaseConf
 ---@field use_treesitter? boolean
 ---@field chars? table<string, string>
----@field textobject { keymap: string, desc: string }
+---@field textobject { keymap: table<string, string> | string, desc: string }
 ---@field max_file_size? number
 ---@field error_sign? boolean
 
 ---@class HlChunk.ChunkConf : HlChunk.BaseConf
 ---@field use_treesitter boolean
 ---@field chars table<string, string>
----@field textobject { keymap: string, desc: string }
+---@field textobject { keymap: table<string, string> | string, desc: string }
 ---@field max_file_size number
 ---@field error_sign boolean
 ---@field duration number
